@@ -1,0 +1,1 @@
+/usr/bin/c++  -g  -rdynamic CMakeFiles/app.dir/main.cpp.o CMakeFiles/app.dir/Helpers.cpp.o CMakeFiles/app.dir/Resources.cpp.o CMakeFiles/app.dir/vkmDeviceFeatureManager.cpp.o CMakeFiles/app.dir/vkmInit.cpp.o  -o app  -Wl,-rpath,/home/mica/Downloads/1.2.198.1/x86_64/lib /home/mica/Downloads/1.2.198.1/x86_64/lib/libvulkan.so /usr/lib/x86_64-linux-gnu/libglfw.so.3.3 
