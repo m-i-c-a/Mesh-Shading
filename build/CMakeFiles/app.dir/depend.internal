@@ -29,6 +29,9 @@ CMakeFiles/app.dir/Helpers.cpp.o
  /home/mica/Downloads/1.2.198.1/x86_64/include/vulkan/vulkan_xcb.h
  /home/mica/Downloads/1.2.198.1/x86_64/include/vulkan/vulkan_xlib.h
  /home/mica/Downloads/1.2.198.1/x86_64/include/vulkan/vulkan_xlib_xrandr.h
+CMakeFiles/app.dir/Loader.cpp.o
+ /home/mica/Desktop/Vulkan/Mesh-Shader/Loader.cpp
+ /home/mica/Desktop/Vulkan/Mesh-Shader/Loader.hpp
 CMakeFiles/app.dir/Resources.cpp.o
  /home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
  /home/mica/Desktop/Vulkan/Mesh-Shader/Resources.cpp
@@ -61,6 +64,7 @@ CMakeFiles/app.dir/Resources.cpp.o
 CMakeFiles/app.dir/main.cpp.o
  /home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
  /home/mica/Desktop/Vulkan/Mesh-Shader/Helpers.hpp
+ /home/mica/Desktop/Vulkan/Mesh-Shader/Loader.hpp
  /home/mica/Desktop/Vulkan/Mesh-Shader/Resources.hpp
  /home/mica/Desktop/Vulkan/Mesh-Shader/main.cpp
  /home/mica/Desktop/Vulkan/Mesh-Shader/vkmEnums.h

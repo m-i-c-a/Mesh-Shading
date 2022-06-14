@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/app.dir/Helpers.cpp.o"
+  "CMakeFiles/app.dir/Loader.cpp.o"
   "CMakeFiles/app.dir/Resources.cpp.o"
   "CMakeFiles/app.dir/main.cpp.o"
   "CMakeFiles/app.dir/vkmDeviceFeatureManager.cpp.o"

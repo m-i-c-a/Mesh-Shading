@@ -150,6 +150,33 @@ Helpers.cpp.s:
 	$(MAKE) -f CMakeFiles/app.dir/build.make CMakeFiles/app.dir/Helpers.cpp.s
 .PHONY : Helpers.cpp.s
 
+Loader.o: Loader.cpp.o
+
+.PHONY : Loader.o
+
+# target to build an object file
+Loader.cpp.o:
+	$(MAKE) -f CMakeFiles/app.dir/build.make CMakeFiles/app.dir/Loader.cpp.o
+.PHONY : Loader.cpp.o
+
+Loader.i: Loader.cpp.i
+
+.PHONY : Loader.i
+
+# target to preprocess a source file
+Loader.cpp.i:
+	$(MAKE) -f CMakeFiles/app.dir/build.make CMakeFiles/app.dir/Loader.cpp.i
+.PHONY : Loader.cpp.i
+
+Loader.s: Loader.cpp.s
+
+.PHONY : Loader.s
+
+# target to generate assembly for a file
+Loader.cpp.s:
+	$(MAKE) -f CMakeFiles/app.dir/build.make CMakeFiles/app.dir/Loader.cpp.s
+.PHONY : Loader.cpp.s
+
 Resources.o: Resources.cpp.o
 
 .PHONY : Resources.o
@@ -270,6 +297,9 @@ help:
 	@echo "... Helpers.o"
 	@echo "... Helpers.i"
 	@echo "... Helpers.s"
+	@echo "... Loader.o"
+	@echo "... Loader.i"
+	@echo "... Loader.s"
 	@echo "... Resources.o"
 	@echo "... Resources.i"
 	@echo "... Resources.s"

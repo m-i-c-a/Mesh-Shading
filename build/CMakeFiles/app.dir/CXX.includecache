@@ -20,6 +20,16 @@ string
 vulkan/vulkan.h
 -
 
+/home/mica/Desktop/Vulkan/Mesh-Shader/Loader.hpp
+glm/vec2.hpp
+-
+glm/vec3.hpp
+-
+vector
+-
+string
+-
+
 /home/mica/Desktop/Vulkan/Mesh-Shader/Resources.hpp
 vulkan/vulkan.h
 -
@@ -49,6 +59,8 @@ Helpers.hpp
 /home/mica/Desktop/Vulkan/Mesh-Shader/Helpers.hpp
 Resources.hpp
 /home/mica/Desktop/Vulkan/Mesh-Shader/Resources.hpp
+Loader.hpp
+/home/mica/Desktop/Vulkan/Mesh-Shader/Loader.hpp
 
 /home/mica/Desktop/Vulkan/Mesh-Shader/vkmEnums.h
 

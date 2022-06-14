@@ -3,7 +3,7 @@
 // layout(location=0) in vec3 a_pos;
 // layout(location=1) in vec2 a_uv;
 
-layout(location=0) out vec2 out_uv;
+layout(location=0) out vec3 out_norm;
 
 // struct PerObjData
 // {
@@ -25,6 +25,7 @@ struct Vertex
 {
     float vx, vy, vz;
     float ux, uy;
+    float nx, ny, nz;
 };
 
 layout(set=0, binding=0) readonly buffer VertexBuffer
@@ -36,5 +37,5 @@ void main()
 {
     Vertex vertexInfo = vertices[gl_VertexIndex];
     gl_Position = vec4(vertexInfo.vx, vertexInfo.vy, vertexInfo.vz, 1.0f); 
-    out_uv = vec2(vertexInfo.ux, vertexInfo.uy);
+    out_norm = vec3(vertexInfo.nx, vertexInfo.ny, vertexInfo.nz);
 }

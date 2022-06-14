@@ -29,6 +29,9 @@ CMakeFiles/app.dir/Helpers.cpp.o: /home/mica/Downloads/1.2.198.1/x86_64/include/
 CMakeFiles/app.dir/Helpers.cpp.o: /home/mica/Downloads/1.2.198.1/x86_64/include/vulkan/vulkan_xlib.h
 CMakeFiles/app.dir/Helpers.cpp.o: /home/mica/Downloads/1.2.198.1/x86_64/include/vulkan/vulkan_xlib_xrandr.h
 
+CMakeFiles/app.dir/Loader.cpp.o: ../Loader.cpp
+CMakeFiles/app.dir/Loader.cpp.o: ../Loader.hpp
+
 CMakeFiles/app.dir/Resources.cpp.o: ../Defines.hpp
 CMakeFiles/app.dir/Resources.cpp.o: ../Resources.cpp
 CMakeFiles/app.dir/Resources.cpp.o: ../Resources.hpp
@@ -60,6 +63,7 @@ CMakeFiles/app.dir/Resources.cpp.o: /home/mica/Downloads/1.2.198.1/x86_64/includ
 
 CMakeFiles/app.dir/main.cpp.o: ../Defines.hpp
 CMakeFiles/app.dir/main.cpp.o: ../Helpers.hpp
+CMakeFiles/app.dir/main.cpp.o: ../Loader.hpp
 CMakeFiles/app.dir/main.cpp.o: ../Resources.hpp
 CMakeFiles/app.dir/main.cpp.o: ../main.cpp
 CMakeFiles/app.dir/main.cpp.o: ../vkmEnums.h

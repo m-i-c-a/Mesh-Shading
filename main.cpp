@@ -16,6 +16,7 @@
 #include "vkmInit.hpp"
 #include "Helpers.hpp"
 #include "Resources.hpp"
+#include "Loader.hpp"
 
 // vkmBufferPool<PerObjectData>* buffer_pool = nullptr;
 
@@ -24,6 +25,8 @@ struct AppManager
     GLFWwindow *window;
     uint32_t window_width = 500;
     uint32_t window_height = 500;
+
+    uint32_t indexCount[BUFFER_COUNT];
 
 } g_app;
 
@@ -533,10 +536,28 @@ void init()
 
     // createBuffer(g_vk.device, sizeof(float) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_VERTEX]);
     // uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_TRIANGLE_VERTEX], sizeof(float) * vertices.size(), vertices.data());
-    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_GEOMETRY_SSBO], sizeof(float) * vertices.size(), vertices.data());
+    // uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_GEOMETRY_SSBO], sizeof(float) * vertices.size(), vertices.data());
 
-    createBuffer(g_vk.device, sizeof(uint32_t) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_INDEX]);
-    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_TRIANGLE_INDEX], sizeof(uint32_t) * indices.size(), indices.data());
+    // createBuffer(g_vk.device, sizeof(uint32_t) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_INDEX]);
+    // uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_TRIANGLE_INDEX], sizeof(uint32_t) * indices.size(), indices.data());
+
+    ObjectBufferData objVertexData = loadObjFile("../objects/monkey.obj");
+
+    // for (const Vertex& v : objVertexData.vertices)
+    // {
+    //     LOG("pos: %f %f %f   uv: %f %f   normal: %f %f %f\n", v.pos.x, v.pos.y, v.pos.z, v.uv.x, v.uv.y, v.normal.x, v.normal.y, v.normal.z);
+    // }
+
+    // for (const uint32_t u : objVertexData.indices)
+    // {
+    //     LOG("%u ", u);
+    // }
+    // LOG("\n");
+
+    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_GEOMETRY_SSBO], sizeof(Vertex) * objVertexData.vertices.size(), objVertexData.vertices.data());
+    createBuffer(g_vk.device, sizeof(uint32_t) * objVertexData.indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_INDEX]);
+    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_TRIANGLE_INDEX], sizeof(uint32_t) * objVertexData.indices.size(), objVertexData.indices.data());
+    g_app.indexCount[BUFFER_TRIANGLE_INDEX] = objVertexData.indices.size();
 
     updateDescriptorSets();
 }
@@ -581,7 +602,7 @@ void draw()
     // vkCmdPushConstants(commandBuffer, g_vk_app.pipeline_layout[PIPELINE_DEFAULT], VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4, &g_app.tex_idx);
 
     vkCmdBindIndexBuffer(commandBuffer, g_vk.buffers[BUFFER_TRIANGLE_INDEX].buffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(commandBuffer, 6, 1, 0, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, g_app.indexCount[BUFFER_TRIANGLE_INDEX], 1, 0, 0, 0);
 
     // if (g_app.render_gui)
     // {
