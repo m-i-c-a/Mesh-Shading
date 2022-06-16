@@ -1,0 +1,45 @@
+#version 450
+
+#extension GL_NV_mesh_shader : require
+
+/*
+Mesh processor produces a collection of primitives.
+
+The invocations of the mesh shader work group write an output mesh, comprising 
+    * a set of primitives with per-primitive attributes
+    * a set of vertices with per-vertex attributes
+    * and an array of indices identifying the mesh vertices that belong to each 
+      primitive
+    
+The primitives of this mesh are then processed by subsequent graphics pipeline stages,
+where the outputs of the mesh shader form an interface with the fragment shader.
+*/
+
+layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
+
+// primitive type = "'points', 'lines', and 'triangles' are used to specify the 
+//                    type of output primitive produced by the mesh shader, and
+//                    only one of these is accepted."
+// max_vertitices = "is used to specify the maximum number of vertices the shader
+//                   will ever emit for the invocation group [workgroup]."
+// max_primitives = "is used to specify the maximum number of primitives the shader 
+//                   will ever emit for the invocation group [workgroup]."
+layout(triangles, max_vertices=3, max_primitives=1) out;
+
+const vec3 vertices[3] = { vec3(-0.5f, 0.5f, 0.0f), vec3(0.0f, -0.5f, 0.0f), vec3(0.5f, 0.5f, 0.0f) };
+
+void main()
+{
+    // Vertices
+    gl_MeshVerticesNV[0].gl_Position = vec4(vertices[0], 1.0f);
+    gl_MeshVerticesNV[1].gl_Position = vec4(vertices[1], 1.0f);
+    gl_MeshVerticesNV[2].gl_Position = vec4(vertices[2], 1.0f);
+
+    // Indices 
+    gl_PrimitiveIndicesNV[0] =  0; 
+    gl_PrimitiveIndicesNV[1] =  1;
+    gl_PrimitiveIndicesNV[2] =  2; 
+
+    // Number of primitives output by this innvocation
+    gl_PrimitiveCountNV = 1;
+}

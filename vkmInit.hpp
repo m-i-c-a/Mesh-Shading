@@ -9,10 +9,19 @@
 #include "vkmEnums.h"
 #include "Resources.hpp"
 
+struct Meshlet
+{
+    uint32_t vertices[64];
+    uint8_t indices[126];
+    uint8_t triangleCount;
+    uint8_t vertexCount;
+};
+
 enum class SupportedDeviceFeature
 {
     eSynchronization2   = 0,
     eDescriptorIndexing = 1,
+    eMeshShadingNV      = 2,
     eInvalidFeature     
 };
 
@@ -71,6 +80,7 @@ struct VulkanResources
     VkFence fences[FENCE_COUNT];
     Buffer buffers[BUFFER_COUNT];
     uint32_t currentSwapchainImageIdx = 0;
+    std::vector<Meshlet> meshlets[BUFFER_COUNT];
 };
 
 

@@ -18,7 +18,7 @@
 #include "Resources.hpp"
 #include "Loader.hpp"
 
-// vkmBufferPool<PerObjectData>* buffer_pool = nullptr;
+#define MESH_SHADING
 
 struct AppManager
 {
@@ -32,65 +32,7 @@ struct AppManager
 
 VulkanResources g_vk;
 
-#if 0
-void initss()
-{
-    // vkmStagingBuffer::init(g_vk.device->get_device(), g_vk.device->get_phys_dev_mem_props());
-    // vkmBufferPool<PerObjectData>::init(g_vk.device->get_device(), g_vk.device->get_phys_dev_mem_props());
 
-    // buffer_pool = new vkmBufferPool<PerObjectData>(g_vk.device->get_queue(QueueType::eGraphics), g_vk.device->get_queue_family_idx(QueueType::eGraphics));
-
-    // Create Square Buffers
-    // std::array<float, 20> vertices{
-    //     -0.5f,  0.5f, 0.0f,   0.0f, 0.0f, // bot left
-    //     -0.5f, -0.5f, 0.0f,   0.0f, 1.0f, // top left
-    //      0.5f, -0.5f, 0.0f,   1.0f, 1.0f, // top right
-    //      0.5f,  0.5f, 0.0f,   1.0f, 0.0f, // bot right
-    // };
-
-    // std::array<uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
-
-    // createBuffer(g_vk.device, sizeof(float) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_VERTEX]);
-    // createBuffer(g_vk.device, sizeof(uint32_t) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_INDEX]);
-
-    // // Create Renderables
-    // Renderable renderable {};
-    // renderable.vk_buffer_vertex = vk_buffer[BUFFER_VERTEX_SQUARE];
-    // renderable.vk_buffer_index = vk_buffer[BUFFER_INDEX_SQUARE];
-    // renderable.index_count = indices.size();
-    // renderable.draw_idx = buffer_pool->acquire_block();
-
-    // PerObjectData& draw_data = buffer_pool->get_write_block(renderable.draw_idx);
-    // draw_data.translation = { 0, 0.5, 0, 0 };
-    // buffer_pool->update_dirty_blocks(0);
-
-    // renderable_list.push_back(renderable);
-
-    // g_app.cull_renderable.resize(renderable_list.size(), false);
-}
-
-
-void draw()
-{
-    // // Bind Draw SSBO
-    // vkCmdBindDescriptorSets(g_vk_app.command_buffer[COMMAND_BUFFER_RENDER], VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk_app.pipeline_layout[PIPELINE_DEFAULT], 0, 1,
-    //                         &g_vk_app.descriptor_set[DESCRIPTOR_SET_FRAME], 0, nullptr);
-
-    // for (Renderable renderable : renderable_list)
-    // {
-    //     PushConst push_const;
-    //     push_const.draw_idx = renderable.draw_idx;
-    //     push_const.tex_idx = g_app.tex_idx;
-
-    //     vkCmdPushConstants(g_vk_app.command_buffer[COMMAND_BUFFER_RENDER], g_vk_app.pipeline_layout[PIPELINE_DEFAULT], VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConst), &push_const);
-
-    //     VkDeviceSize offsets = 0;
-    //     vkCmdBindVertexBuffers(g_vk_app.command_buffer[COMMAND_BUFFER_RENDER], 0, 1, &renderable.vk_buffer_vertex, &offsets);
-    //     vkCmdBindIndexBuffer(g_vk_app.command_buffer[COMMAND_BUFFER_RENDER], renderable.vk_buffer_index, 0, VK_INDEX_TYPE_UINT32);
-    //     vkCmdDrawIndexed(g_vk_app.command_buffer[COMMAND_BUFFER_RENDER], renderable.index_count, 1, 0, 0, 0);
-    // }
-}
-#endif
 // -------------------------
 // RENDERPASS
 // -------------------------
@@ -297,8 +239,12 @@ void updateDescriptorSets()
 
 void createPipelineLayouts()
 {
+#ifdef MESH_SHADING
+    std::array<VkDescriptorSetLayout, 0> setLayouts{};
+#else
     std::array<VkDescriptorSetLayout, 1> setLayouts{
         g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT]};
+#endif
 
     // std::array<VkPushConstantRange, 1> ranges {{
     //     {
@@ -322,6 +268,20 @@ void createPipelineLayouts()
 void createPipelines()
 {
 
+#ifdef MESH_SHADING
+    const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStageCreateInfo{{{
+                                                                                        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                                                                                        .stage = VK_SHADER_STAGE_MESH_BIT_NV,
+                                                                                        .module = createShaderModule(g_vk.device, "../shaders/mesh-mesh.spv"),
+                                                                                        .pName = "main",
+                                                                                    },
+                                                                                    {
+                                                                                        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                                                                                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                                                        .module = createShaderModule(g_vk.device, "../shaders/mesh-frag.spv"),
+                                                                                        .pName = "main",
+                                                                                    }}};
+#else
     const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStageCreateInfo{{{
                                                                                         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                                                                         .stage = VK_SHADER_STAGE_VERTEX_BIT,
@@ -334,25 +294,7 @@ void createPipelines()
                                                                                         .module = createShaderModule(g_vk.device, "../shaders/default-frag.spv"),
                                                                                         .pName = "main",
                                                                                     }}};
-
-    // const std::array<VkVertexInputBindingDescription, 1> vertexInputBindingDescription{{{.binding = 0,
-    //                                                                                         .stride = sizeof(float) * 5,
-    //                                                                                         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX}}};
-
-    // const std::array<VkVertexInputAttributeDescription, 2> vertexInputAttributeDescription{{
-    //     {
-    //         .location = 0,
-    //         .binding = 0,
-    //         .format = VK_FORMAT_R32G32B32_SFLOAT,
-    //         .offset = 0
-    //     },
-    //     {
-    //         .location = 1,
-    //         .binding = 0,
-    //         .format = VK_FORMAT_R32G32B32_SFLOAT,
-    //         .offset = sizeof(float) * 3
-    //     }
-    // }};
+#endif                                                                                
 
     const VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -492,8 +434,8 @@ void init()
         .windowHeight = g_app.window_height,
         .requestedInstanceExtensions = {"VK_KHR_surface", "VK_KHR_xcb_surface"},
         .requestedInstanceLayers = {"VK_LAYER_KHRONOS_validation"},
-        .requestedDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-        .requestedDeviceFeatures = {SupportedDeviceFeature::eSynchronization2, SupportedDeviceFeature::eDescriptorIndexing},
+        .requestedDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_NV_MESH_SHADER_EXTENSION_NAME },
+        .requestedDeviceFeatures = {SupportedDeviceFeature::eSynchronization2, SupportedDeviceFeature::eDescriptorIndexing, SupportedDeviceFeature::eMeshShadingNV},
         .requestedQueueTypes = {VK_QUEUE_GRAPHICS_BIT},
         .requestedQueuePriorities = { 1.0f },
         .requestedSwapchainImageCount = 2u,
@@ -525,39 +467,12 @@ void init()
 
     // Scene
 
-    std::array<float, 20> vertices{
-        -0.5f,  0.5f, 0.0f,   0.0f, 0.0f, // bot left
-        -0.5f, -0.5f, 0.0f,   0.0f, 1.0f, // top left
-         0.5f, -0.5f, 0.0f,   1.0f, 1.0f, // top right
-         0.5f,  0.5f, 0.0f,   1.0f, 0.0f, // bot right
-    };
-
-    std::array<uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
-
-    // createBuffer(g_vk.device, sizeof(float) * vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_VERTEX]);
-    // uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_TRIANGLE_VERTEX], sizeof(float) * vertices.size(), vertices.data());
-    // uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_GEOMETRY_SSBO], sizeof(float) * vertices.size(), vertices.data());
-
-    // createBuffer(g_vk.device, sizeof(uint32_t) * indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_INDEX]);
-    // uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_TRIANGLE_INDEX], sizeof(uint32_t) * indices.size(), indices.data());
-
     ObjectBufferData objVertexData = loadObjFile("../objects/monkey.obj");
 
-    // for (const Vertex& v : objVertexData.vertices)
-    // {
-    //     LOG("pos: %f %f %f   uv: %f %f   normal: %f %f %f\n", v.pos.x, v.pos.y, v.pos.z, v.uv.x, v.uv.y, v.normal.x, v.normal.y, v.normal.z);
-    // }
-
-    // for (const uint32_t u : objVertexData.indices)
-    // {
-    //     LOG("%u ", u);
-    // }
-    // LOG("\n");
-
     uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_GEOMETRY_SSBO], sizeof(Vertex) * objVertexData.vertices.size(), objVertexData.vertices.data());
-    createBuffer(g_vk.device, sizeof(uint32_t) * objVertexData.indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_TRIANGLE_INDEX]);
-    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_TRIANGLE_INDEX], sizeof(uint32_t) * objVertexData.indices.size(), objVertexData.indices.data());
-    g_app.indexCount[BUFFER_TRIANGLE_INDEX] = objVertexData.indices.size();
+    createBuffer(g_vk.device, sizeof(uint32_t) * objVertexData.indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_OBJECT_INDEX]);
+    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_OBJECT_INDEX], sizeof(uint32_t) * objVertexData.indices.size(), objVertexData.indices.data());
+    g_app.indexCount[BUFFER_OBJECT_INDEX] = objVertexData.indices.size();
 
     updateDescriptorSets();
 }
@@ -597,12 +512,17 @@ void draw()
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk.pipeline);
 
+#ifdef MESH_SHADING
+    vkCmdBindIndexBuffer(commandBuffer, g_vk.buffers[BUFFER_OBJECT_INDEX].buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(commandBuffer, 1, 1, 0, 0, 0);
+#else
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk.pipelineLayout, 0, 1, &g_vk.descriptorSets[DESCRIPTOR_SET_FRAME], 0, nullptr);
-
     // vkCmdPushConstants(commandBuffer, g_vk_app.pipeline_layout[PIPELINE_DEFAULT], VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4, &g_app.tex_idx);
 
-    vkCmdBindIndexBuffer(commandBuffer, g_vk.buffers[BUFFER_TRIANGLE_INDEX].buffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(commandBuffer, g_app.indexCount[BUFFER_TRIANGLE_INDEX], 1, 0, 0, 0);
+    vkCmdBindIndexBuffer(commandBuffer, g_vk.buffers[BUFFER_OBJECT_INDEX].buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(commandBuffer, g_app.indexCount[BUFFER_OBJECT_INDEX], 1, 0, 0, 0);
+#endif
+
 
     // if (g_app.render_gui)
     // {

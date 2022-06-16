@@ -24,6 +24,11 @@ static void setPNext(void** pNext, void** prevStruct, void* nextStruct, Supporte
                 static_cast<VkPhysicalDeviceDescriptorIndexingFeatures*>(*prevStruct)->pNext = nextStruct;
                 break;
             }
+            case SupportedDeviceFeature::eMeshShadingNV:
+            {
+                static_cast<VkPhysicalDeviceMeshShaderFeaturesNV*>(*prevStruct)->pNext = nextStruct;
+                break;
+            }
         };
     }
 }
@@ -40,6 +45,11 @@ static void deleteFeatureStruct(void* featureStruct, SupportedDeviceFeature feat
         case SupportedDeviceFeature::eDescriptorIndexing:
         {
             delete static_cast<VkPhysicalDeviceDescriptorIndexingFeatures*>(featureStruct);
+            break;
+        }
+        case SupportedDeviceFeature::eMeshShadingNV:
+        {
+            delete static_cast<VkPhysicalDeviceMeshShaderFeaturesNV*>(featureStruct);
             break;
         }
     };
@@ -84,6 +94,18 @@ vkmDeviceFeatureManager::vkmDeviceFeatureManager(const std::vector<SupportedDevi
                 setPNext(&pNext, &prevFeatureStruct, featureStruct, prevFeatureType);
                 prevFeatureType = SupportedDeviceFeature::eDescriptorIndexing;
 
+                break;
+            }
+            case SupportedDeviceFeature::eMeshShadingNV:
+            {
+                VkPhysicalDeviceMeshShaderFeaturesNV* featureStruct = new VkPhysicalDeviceMeshShaderFeaturesNV();
+                featureStruct->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV;
+                featureStruct->meshShader = VK_TRUE;
+
+                featureStructs.push_back( featureStruct );
+
+                setPNext(&pNext, &prevFeatureStruct, featureStruct, prevFeatureType);
+                prevFeatureType = SupportedDeviceFeature::eMeshShadingNV;
                 break;
             }
             case SupportedDeviceFeature::eInvalidFeature:
