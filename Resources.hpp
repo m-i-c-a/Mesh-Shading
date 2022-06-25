@@ -9,10 +9,20 @@ struct Buffer
     VkDeviceMemory memory;
 };
 
+struct Attachment
+{
+    VkImage image;
+    VkDeviceMemory memory;
+    VkImageView view;
+};
+
 void setPhysicalDeviceMemoryProperties(const VkPhysicalDeviceMemoryProperties& _physicalDeviceMemoryProperties);
 
 void createBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties, Buffer& buffer);
 void uploadBuffer(VkDevice device, VkCommandPool commandPool, VkCommandBuffer commandBuffer, VkQueue queue, const Buffer& stagingBuffer, const Buffer& dstBuffer, VkDeviceSize size, void* data);
 void destroyBuffer(VkDevice device, Buffer& buffer);
+
+void createAttachment(const VkDevice device, const VkFormat format, const VkExtent3D extent, VkImageUsageFlags usage, VkImageAspectFlags aspectMask, Attachment& attachment);
+void destroyAttachment(VkDevice device, Attachment& attachment);
 
 #endif // RESOURCES_HPP

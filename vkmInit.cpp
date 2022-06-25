@@ -374,6 +374,9 @@ void vkmDestroy(VulkanResources& resources)
     for (Buffer& buffer : resources.buffers)
         destroyBuffer(resources.device, buffer);
 
+    for (Attachment& attachment : resources.attachments)
+        destroyAttachment(resources.device, attachment);
+
     for (size_t i = 0; i < DESCRIPTOR_SET_LAYOUT_COUNT; ++i)
         vkDestroyDescriptorSetLayout(resources.device, resources.descriptorSetLayouts[i], nullptr);
 

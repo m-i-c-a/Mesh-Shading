@@ -103,3 +103,65 @@ void destroyBuffer(VkDevice device, Buffer& buffer)
     buffer.memory = VK_NULL_HANDLE;
     buffer.buffer = VK_NULL_HANDLE;
 }
+
+void createAttachment(const VkDevice device, const VkFormat format, const VkExtent3D extent, VkImageUsageFlags usage, VkImageAspectFlags aspectMask, Attachment& attachment)
+{
+    const VkImageCreateInfo imageCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .extent = extent,
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = usage,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+    };
+
+    VK_CHECK(vkCreateImage(device, &imageCreateInfo, nullptr, &attachment.image));
+
+    VkMemoryRequirements memReqs;
+    vkGetImageMemoryRequirements(device, attachment.image, &memReqs);
+
+    const VkMemoryAllocateInfo allocateInfo = { 
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = memReqs.size,
+        .memoryTypeIndex = getHeapIdx(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    };
+
+    VK_CHECK(vkAllocateMemory(device, &allocateInfo, nullptr, &attachment.memory));
+    VK_CHECK(vkBindImageMemory(device, attachment.image, attachment.memory, 0));
+
+    const VkImageViewCreateInfo imageViewCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = attachment.image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .components = {
+            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = VK_COMPONENT_SWIZZLE_IDENTITY },
+        .subresourceRange = {
+            .aspectMask = aspectMask,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1 }
+    };
+
+    VK_CHECK(vkCreateImageView(device, &imageViewCreateInfo, nullptr, &attachment.view));
+}
+
+void destroyAttachment(VkDevice device, Attachment& attachment)
+{
+    vkDestroyImage(device, attachment.image, nullptr);
+    vkFreeMemory(device, attachment.memory, nullptr);
+    vkDestroyImageView(device, attachment.view, nullptr);
+
+    attachment.image = VK_NULL_HANDLE;
+    attachment.memory = VK_NULL_HANDLE;
+    attachment.view = VK_NULL_HANDLE;
+}

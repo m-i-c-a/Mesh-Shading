@@ -54,7 +54,25 @@ enum
     BUFFER_STAGING = 0,
     BUFFER_GEOMETRY_SSBO = 1,
     BUFFER_OBJECT_INDEX = 2,
+    BUFFER_OBJECT_VERTEX = 3,
     BUFFER_COUNT
+};
+
+enum
+{
+    ATTACHMENT_DEPTH = 0,
+    ATTACHMENT_COUNT
+};
+
+enum
+{
+    IMAGE_COUNT
+};
+
+enum
+{
+    IMAGE_VIEW_DEPTH = 0,
+    IMAGE_VIEW_COUNT
 };
 
 #endif // VKM_ENUMS_HPP

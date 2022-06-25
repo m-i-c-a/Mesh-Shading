@@ -2,6 +2,8 @@
 #include <string.h>
 #include <memory>
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -18,7 +20,7 @@
 #include "Resources.hpp"
 #include "Loader.hpp"
 
-#define MESH_SHADING
+// #define MESH_SHADING
 
 struct AppManager
 {
@@ -39,7 +41,7 @@ VulkanResources g_vk;
 
 void createRenderPass()
 {
-    const VkAttachmentDescription attachments[1]{
+    const std::array<VkAttachmentDescription, 2> attachments{{
         {
             // Color
             .format = g_vk.swapchain.format,
@@ -50,20 +52,40 @@ void createRenderPass()
             .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        }};
+        },
+        {
+            // Depth
+            .format = VK_FORMAT_D32_SFLOAT,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        },
+    }};
 
-    const VkAttachmentReference colorReference{
-        .attachment = 0,
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    const std::array<VkAttachmentReference, 1> colorAttachmentReferences {{
+        {
+            .attachment = 0,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        }
+    }};
+
+    const VkAttachmentReference depthAttachmentReference {
+        .attachment = 1,
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    };
 
     const VkSubpassDescription subpass{
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .inputAttachmentCount = 0,
         .pInputAttachments = nullptr,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &colorReference,
+        .colorAttachmentCount = static_cast<uint32_t>(colorAttachmentReferences.size()),
+        .pColorAttachments = colorAttachmentReferences.data(),
         .pResolveAttachments = nullptr,
-        .pDepthStencilAttachment = nullptr,
+        .pDepthStencilAttachment = &depthAttachmentReference,
         .preserveAttachmentCount = 0,
         .pPreserveAttachments = nullptr};
 
@@ -92,8 +114,8 @@ void createRenderPass()
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0x0,
-        .attachmentCount = 1,
-        .pAttachments = attachments,
+        .attachmentCount = static_cast<uint32_t>(attachments.size()),
+        .pAttachments = attachments.data(),
         .subpassCount = 1,
         .pSubpasses = &subpass,
         .dependencyCount = 2,
@@ -104,10 +126,12 @@ void createRenderPass()
 
 void createFramebuffers()
 {
+    createAttachment(g_vk.device, VK_FORMAT_D32_SFLOAT, { g_vk.swapchain.extent.width, g_vk.swapchain.extent.height, 1 }, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, g_vk.attachments[ATTACHMENT_DEPTH]);
+
     VkFramebufferCreateInfo createInfo{
         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         .renderPass = g_vk.renderPass,
-        .attachmentCount = 1,
+        .attachmentCount = 2,
         .width = g_vk.swapchain.extent.width,
         .height = g_vk.swapchain.extent.height,
         .layers = 1};
@@ -115,8 +139,9 @@ void createFramebuffers()
     g_vk.framebuffers.resize(g_vk.swapchain.imageViews.size());
     for (size_t i = 0; i < g_vk.framebuffers.size(); ++i)
     {
-        VkImageView attachments[1] = {
-            g_vk.swapchain.imageViews[i]};
+        VkImageView attachments[2] = {
+            g_vk.swapchain.imageViews[i],
+            g_vk.attachments[ATTACHMENT_DEPTH].view};
 
         createInfo.pAttachments = attachments;
 
@@ -239,12 +264,8 @@ void updateDescriptorSets()
 
 void createPipelineLayouts()
 {
-#ifdef MESH_SHADING
-    std::array<VkDescriptorSetLayout, 0> setLayouts{};
-#else
     std::array<VkDescriptorSetLayout, 1> setLayouts{
         g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT]};
-#endif
 
     // std::array<VkPushConstantRange, 1> ranges {{
     //     {
@@ -258,6 +279,8 @@ void createPipelineLayouts()
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
         .pSetLayouts = setLayouts.data(),
+        // .setLayoutCount = 0,
+        // .pSetLayouts = nullptr,
         .pushConstantRangeCount = 0, // static_cast<uint32_t>(ranges.size()),
         .pPushConstantRanges = nullptr // ranges.data(),
     };
@@ -267,41 +290,54 @@ void createPipelineLayouts()
 
 void createPipelines()
 {
-
-#ifdef MESH_SHADING
-    const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStageCreateInfo{{{
-                                                                                        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                                                                                        .stage = VK_SHADER_STAGE_MESH_BIT_NV,
-                                                                                        .module = createShaderModule(g_vk.device, "../shaders/mesh-mesh.spv"),
-                                                                                        .pName = "main",
-                                                                                    },
-                                                                                    {
-                                                                                        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                                                                                        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                                                                                        .module = createShaderModule(g_vk.device, "../shaders/mesh-frag.spv"),
-                                                                                        .pName = "main",
-                                                                                    }}};
-#else
     const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStageCreateInfo{{{
                                                                                         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                                                                         .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                                                                                        .module = createShaderModule(g_vk.device, "../shaders/default-vert.spv"),
+                                                                                        .module = createShaderModule(g_vk.device, "../shaders/spirv/default-vert.spv"),
                                                                                         .pName = "main",
                                                                                     },
                                                                                     {
                                                                                         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                                                                         .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                                                                                        .module = createShaderModule(g_vk.device, "../shaders/default-frag.spv"),
+                                                                                        .module = createShaderModule(g_vk.device, "../shaders/spirv/default-frag.spv"),
                                                                                         .pName = "main",
                                                                                     }}};
-#endif                                                                                
+    
+    const std::array<VkVertexInputBindingDescription, 1> vertexInputBindings {{
+        {
+            .binding = 0,
+            .stride = 32,
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+        }
+    }};
+
+    const std::array<VkVertexInputAttributeDescription, 3> vertexInputAttributes {{
+        {
+            .location = 0,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .offset = 0,
+        },
+        {
+            .location = 1,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            .offset = 12,
+        },
+        {
+            .location = 2,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .offset = 20,
+        },
+    }};
 
     const VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        .vertexBindingDescriptionCount = 0, // static_cast<uint32_t>(vertexInputBindingDescription.size()),
-        .pVertexBindingDescriptions = nullptr, // vertexInputBindingDescription.data(),
-        .vertexAttributeDescriptionCount = 0, // static_cast<uint32_t>(vertexInputAttributeDescription.size()),
-        .pVertexAttributeDescriptions = nullptr // vertexInputAttributeDescription.data()};
+        .vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindings.size()),
+        .pVertexBindingDescriptions = vertexInputBindings.data(),
+        .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexInputAttributes.size()),
+        .pVertexAttributeDescriptions = vertexInputAttributes.data()
     };
 
     const VkViewport viewport{
@@ -323,6 +359,15 @@ void createPipelines()
         .pViewports = &viewport,
         .scissorCount = 1,
         .pScissors = &scissorRect,
+    };
+
+    const VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
     };
 
     const VkPipelineColorBlendAttachmentState colorBlendAttachmentState{
@@ -383,6 +428,7 @@ void createPipelines()
         .pViewportState = &viewportStateCreateInfo,
         .pRasterizationState = &rasterizationStateCreateInfo,
         .pMultisampleState = &multisampleStateCreateInfo,
+        .pDepthStencilState = &depthStencilStateCreateInfo,
         .pColorBlendState = &colorBlendStateCreateInfo,
         .layout = g_vk.pipelineLayout,
         .renderPass = g_vk.renderPass,
@@ -466,13 +512,13 @@ void init()
     createBuffer(g_vk.device, geometrySSBOSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_GEOMETRY_SSBO]);
 
     // Scene
+    MeshBufferData meshVertexData = loadMeshFile("../meshes/sphere.mesh");
 
-    ObjectBufferData objVertexData = loadObjFile("../objects/monkey.obj");
-
-    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_GEOMETRY_SSBO], sizeof(Vertex) * objVertexData.vertices.size(), objVertexData.vertices.data());
-    createBuffer(g_vk.device, sizeof(uint32_t) * objVertexData.indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_OBJECT_INDEX]);
-    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_OBJECT_INDEX], sizeof(uint32_t) * objVertexData.indices.size(), objVertexData.indices.data());
-    g_app.indexCount[BUFFER_OBJECT_INDEX] = objVertexData.indices.size();
+    createBuffer(g_vk.device, sizeof(float) * meshVertexData.vertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_OBJECT_VERTEX]);
+    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_OBJECT_VERTEX], sizeof(float) * meshVertexData.vertices.size(), meshVertexData.vertices.data());
+    createBuffer(g_vk.device, sizeof(uint32_t) * meshVertexData.indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_OBJECT_INDEX]);
+    uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_OBJECT_INDEX], sizeof(uint32_t) * meshVertexData.indices.size(), meshVertexData.indices.data());
+    g_app.indexCount[BUFFER_OBJECT_INDEX] = meshVertexData.indices.size();
 
     updateDescriptorSets();
 }
@@ -488,8 +534,14 @@ void draw()
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
 
-    static const VkClearValue clearValue{
-        .color = {0.22f, 0.22f, 0.22f, 1.0f}};
+    static const std::array<VkClearValue, 2> clearValues {{
+        {
+            .color = {0.22f, 0.22f, 0.22f, 1.0f},
+        },
+        {
+            .depthStencil = { 1.0f, 0u }
+        }
+    }};
 
     const VkRenderPassBeginInfo renderPassBeginInfo{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -498,8 +550,8 @@ void draw()
         .renderArea = {
             .offset = {.x = 0, .y = 0},
             .extent = g_vk.swapchain.extent},
-        .clearValueCount = 1,
-        .pClearValues = &clearValue,
+        .clearValueCount = static_cast<uint32_t>(clearValues.size()),
+        .pClearValues = clearValues.data(),
     };
 
     vkResetCommandPool(g_vk.device, g_vk.commandPools[COMMAND_POOL_DEFAULT], 0x0);
@@ -512,16 +564,13 @@ void draw()
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk.pipeline);
 
-#ifdef MESH_SHADING
-    vkCmdBindIndexBuffer(commandBuffer, g_vk.buffers[BUFFER_OBJECT_INDEX].buffer, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(commandBuffer, 1, 1, 0, 0, 0);
-#else
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk.pipelineLayout, 0, 1, &g_vk.descriptorSets[DESCRIPTOR_SET_FRAME], 0, nullptr);
     // vkCmdPushConstants(commandBuffer, g_vk_app.pipeline_layout[PIPELINE_DEFAULT], VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4, &g_app.tex_idx);
 
+    static const VkDeviceSize pOffsets = 0;
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &g_vk.buffers[BUFFER_OBJECT_VERTEX].buffer, &pOffsets);
     vkCmdBindIndexBuffer(commandBuffer, g_vk.buffers[BUFFER_OBJECT_INDEX].buffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(commandBuffer, g_app.indexCount[BUFFER_OBJECT_INDEX], 1, 0, 0, 0);
-#endif
 
 
     // if (g_app.render_gui)

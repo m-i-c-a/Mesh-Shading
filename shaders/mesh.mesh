@@ -15,6 +15,18 @@ The primitives of this mesh are then processed by subsequent graphics pipeline s
 where the outputs of the mesh shader form an interface with the fragment shader.
 */
 
+
+/*
+    gl_PrimitiveIndicesNV[] 
+
+        "Depending on the output primitive type declared using a
+        layout qualifier, each group of one (points), two (lines), three
+        (triangles) specifies the indices of the vertices making up the primitive.
+        All index values must be in the range [0, N-1], where N is the value of
+        the "max_vertices" layout qualifier.  Out-of-bounds index values will
+        result in undefined behavior."
+*/
+
 layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
 
 // primitive type = "'points', 'lines', and 'triangles' are used to specify the 

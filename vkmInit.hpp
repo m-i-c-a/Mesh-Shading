@@ -80,6 +80,8 @@ struct VulkanResources
     VkFence fences[FENCE_COUNT];
     Buffer buffers[BUFFER_COUNT];
     uint32_t currentSwapchainImageIdx = 0;
+    Attachment attachments[ATTACHMENT_COUNT];
+    VkImageView imageViews[IMAGE_VIEW_COUNT];
     std::vector<Meshlet> meshlets[BUFFER_COUNT];
 };
 

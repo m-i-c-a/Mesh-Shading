@@ -80,3 +80,59 @@ ObjectBufferData loadObjFile(const std::string& filepath)
     return objectData;
 }
 
+enum class VertexInputAttribute_T
+{
+    ePosition = 0,
+    eUv          , // 1
+    eNormal      , // 2
+};
+
+static std::unordered_map<VertexInputAttribute_T, uint32_t> attributeComponentSizeLUT {
+    { VertexInputAttribute_T::ePosition, 3 },
+    { VertexInputAttribute_T::eUv      , 2 },
+    { VertexInputAttribute_T::eNormal  , 3 },
+};
+
+MeshBufferData loadMeshFile(const std::string& filepath)
+{
+    std::ifstream file { filepath, std::ifstream::in };
+    assert( file.is_open ());
+
+    // read # of attribs
+    uint8_t attribCount = 0;
+    file.read(reinterpret_cast<char*>(&attribCount), sizeof(uint8_t));
+
+    // read attribs
+    std::vector<uint8_t> attribs( attribCount, 0 );
+    file.read(reinterpret_cast<char*>(attribs.data()), sizeof(uint8_t) * attribCount);
+
+    // read vertex count
+    uint32_t vertexCount = 0;
+    file.read(reinterpret_cast<char*>(&vertexCount), sizeof(uint32_t));
+
+    // read index count
+    uint32_t indexCount = 0;
+    file.read(reinterpret_cast<char*>(&indexCount), sizeof(uint32_t));
+
+    const uint32_t floatStride = [&](){
+        uint32_t ret = 0;
+        for (const auto attrib : attribs)
+        {
+            ret += attributeComponentSizeLUT.at(static_cast<VertexInputAttribute_T>(attrib));
+        }
+
+        return ret;
+    }();
+
+    MeshBufferData meshData;
+
+    // read vertices
+    meshData.vertices.resize(vertexCount * floatStride);
+    file.read(reinterpret_cast<char*>(meshData.vertices.data()), sizeof(float) * meshData.vertices.size());
+
+    // read indices
+    meshData.indices.resize(indexCount);
+    file.read(reinterpret_cast<char*>(meshData.indices.data()), sizeof(uint32_t) * indexCount);
+
+    return meshData;
+}

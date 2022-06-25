@@ -25,6 +25,14 @@ struct ObjectBufferData
     std::vector<uint32_t> indices;
 };
 
+struct MeshBufferData
+{
+    std::vector<float> vertices;
+    std::vector<uint32_t> indices;
+};
+
 ObjectBufferData loadObjFile(const std::string& filepath);
+
+MeshBufferData loadMeshFile(const std::string& filepath);
 
 #endif // LOADER_HPP

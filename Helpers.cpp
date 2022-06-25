@@ -88,3 +88,28 @@ VkSemaphore createSemaphore(VkDevice device)
     VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &semaphore));
     return semaphore;
 }
+
+VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectMask, uint32_t numMipLevels)
+{
+    const VkImageViewCreateInfo imageViewCreateInfo {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .components = {
+            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = VK_COMPONENT_SWIZZLE_IDENTITY },
+        .subresourceRange = {
+            .aspectMask = aspectMask,
+            .baseMipLevel = 0,
+            .levelCount = numMipLevels,
+            .baseArrayLayer = 0,
+            .layerCount = 1 }
+    };
+
+    VkImageView imageView;
+    VK_CHECK(vkCreateImageView(device, &imageViewCreateInfo, nullptr, &imageView));
+    return imageView;
+}
