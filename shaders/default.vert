@@ -6,6 +6,12 @@ layout(location=2) in vec3 a_norm;
 
 layout(location=0) out vec3 out_norm;
 
+layout(set=0, binding=0) uniform PerFrameUBO
+{
+    mat4 viewMatrix;
+    mat4 projMatrix;
+};
+
 // struct PerObjData
 // {
 //     vec4 translation;
@@ -40,6 +46,6 @@ void main()
     // gl_Position = vec4(vertexInfo.vx, vertexInfo.vy, vertexInfo.vz, 1.0f); 
     // out_norm = vec3(vertexInfo.nx, vertexInfo.ny, vertexInfo.nz);
 
-    gl_Position = vec4(a_pos, 1.0f);
+    gl_Position = projMatrix * viewMatrix * vec4(a_pos, 1.0f);
     out_norm = a_norm;
 }

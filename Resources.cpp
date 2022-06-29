@@ -50,6 +50,24 @@ void createBuffer(VkDevice device, VkDeviceSize size, VkBufferUsageFlags usage, 
     VK_CHECK(vkBindBufferMemory(device, buffer.buffer, buffer.memory, 0));
 }
 
+void uploadToBuffer(VkDevice device, const Buffer& buffer, VkDeviceSize size, VkDeviceSize offset, void* data)
+{
+    // TODO : store mapped pointer
+    void* mappedData = nullptr;
+    vkMapMemory(device, buffer.memory, 0, VK_WHOLE_SIZE, 0, &mappedData);
+    memcpy(mappedData + offset, data, size);
+
+    VkMappedMemoryRange range{
+        .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+        .memory = buffer.memory,
+        .offset = 0,
+        .size = VK_WHOLE_SIZE,
+    };
+
+    vkFlushMappedMemoryRanges(device, 1, &range);
+    vkUnmapMemory(device, buffer.memory);
+}
+
 void uploadBuffer(VkDevice device, VkCommandPool commandPool, VkCommandBuffer commandBuffer, VkQueue queue, const Buffer& stagingBuffer, const Buffer& dstBuffer, VkDeviceSize size, void* data)
 {
     void* stagingData = nullptr;

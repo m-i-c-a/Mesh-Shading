@@ -16,30 +16,8 @@ assert.h
 string
 -
 
-/home/mica/Desktop/Vulkan/Mesh-Shader/Helpers.cpp
-vulkan/vulkan.h
--
-Defines.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
-
 /home/mica/Desktop/Vulkan/Mesh-Shader/Helpers.hpp
 vulkan/vulkan.h
--
-
-/home/mica/Desktop/Vulkan/Mesh-Shader/Loader.cpp
-Loader.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/Loader.hpp
-fstream
--
-assert.h
--
-sstream
--
-iostream
--
-unordered_map
--
-array
 -
 
 /home/mica/Desktop/Vulkan/Mesh-Shader/Loader.hpp
@@ -51,14 +29,6 @@ vector
 -
 string
 -
-
-/home/mica/Desktop/Vulkan/Mesh-Shader/Resources.cpp
-string.h
--
-Resources.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/Resources.hpp
-Defines.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
 
 /home/mica/Desktop/Vulkan/Mesh-Shader/Resources.hpp
 vulkan/vulkan.h
@@ -83,6 +53,8 @@ GLFW/glfw3.h
 -
 glm/glm.hpp
 -
+glm/gtc/type_ptr.hpp
+-
 Defines.hpp
 /home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
 vkmEnums.h
@@ -96,29 +68,7 @@ Resources.hpp
 Loader.hpp
 /home/mica/Desktop/Vulkan/Mesh-Shader/Loader.hpp
 
-/home/mica/Desktop/Vulkan/Mesh-Shader/vkmDeviceFeatureManager.cpp
-vulkan/vulkan.h
--
-vkmDeviceFeatureManager.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/vkmDeviceFeatureManager.hpp
-Defines.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
-
-/home/mica/Desktop/Vulkan/Mesh-Shader/vkmDeviceFeatureManager.hpp
-vector
--
-vkmInit.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/vkmInit.hpp
-
 /home/mica/Desktop/Vulkan/Mesh-Shader/vkmEnums.h
-
-/home/mica/Desktop/Vulkan/Mesh-Shader/vkmInit.cpp
-vkmInit.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/vkmInit.hpp
-Defines.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
-vkmDeviceFeatureManager.hpp
-/home/mica/Desktop/Vulkan/Mesh-Shader/vkmDeviceFeatureManager.hpp
 
 /home/mica/Desktop/Vulkan/Mesh-Shader/vkmInit.hpp
 vector

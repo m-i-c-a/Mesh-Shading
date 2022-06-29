@@ -8,6 +8,7 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 // #include <imgui/imgui.h>
 // #include <imgui/backends/imgui_impl_glfw.h>
@@ -25,15 +26,98 @@
 struct AppManager
 {
     GLFWwindow *window;
-    uint32_t window_width = 500;
-    uint32_t window_height = 500;
+    uint32_t windowWidth = 500;
+    uint32_t windowHeight = 500;
+
+    glm::mat4 projMatrix { 1.0f };
+
+    bool mouseDown = false;
+    glm::vec2 prevMousePos { 0.0f, 0.0f };
 
     uint32_t indexCount[BUFFER_COUNT];
 
 } g_app;
 
+struct Camera {
+    double yaw = -1.0f * glm::half_pi<double>();
+    double pitch = 0.0f;
+    glm::mat4 matrix { 1.0f };
+    bool dirty = false;
+} g_camera;
+
 VulkanResources g_vk;
 
+struct PerFrameUBO
+{
+    glm::mat4 viewMatrix;
+    glm::mat4 projMatrix;
+};
+
+// -------------------------
+// GLFW INPUT HANDLER
+// -------------------------
+
+static void update_camera() {
+
+    glm::vec3 pos {
+        glm::cos(g_camera.yaw) * glm::cos(g_camera.pitch),
+        glm::sin(g_camera.pitch),
+        glm::sin(g_camera.yaw) * glm::cos(g_camera.pitch) };
+
+    pos *= 2;
+    
+    glm::vec3 forward = glm::normalize(-1.0f * pos);
+    glm::vec3 up { 0.0f, 1.0f, 0.0f };
+    glm::vec3 right = glm::normalize(glm::cross(forward, up));
+    up = glm::normalize(glm::cross(right, forward));
+
+    g_camera.matrix = glm::lookAt(pos, forward, up);
+    g_camera.dirty = true;
+
+    // This wasn't giving correct reutls, idk why
+    // g_camera.matrix = {
+    //     right.x, right.y, right.z, -g_camera.pos.x,
+    //     up.x, up.y, up.z, -g_camera.pos.y,
+    //     forward.x, forward.y, forward.z, -g_camera.pos.z, 
+    //     0.0f, 0.0f, 0.0f, 1.0f
+    // };
+}
+
+
+static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
+    if (g_app.mouseDown) {
+        // drag across screen = pi radians of rotation
+        const double delta_x = -1.0f * glm::pi<double>() * (g_app.prevMousePos.x - xpos) / g_app.windowWidth ;
+        const double delta_y = -1.0f * glm::pi<double>() * (g_app.prevMousePos.y - ypos) / g_app.windowHeight;
+
+        g_camera.yaw += delta_x;
+        if (g_camera.yaw > glm::two_pi<double>()) g_camera.yaw -= glm::two_pi<double>();
+        if (g_camera.yaw < -1.0f * glm::two_pi<double>()) g_camera.yaw += glm::two_pi<double>();
+
+        g_camera.pitch = glm::clamp(g_camera.pitch + delta_y, -1.0f * glm::half_pi<double>() + 0.01f, glm::half_pi<double>() - 0.01f);
+
+        update_camera();
+    }
+
+    g_app.prevMousePos.x = xpos;
+    g_app.prevMousePos.y = ypos;
+}
+
+static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    // if (!g_app.loaded)
+    //     return;
+
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        // auto io = ImGui::GetIO();
+        // if (!io.WantCaptureMouse)
+            g_app.mouseDown = true;
+        // else
+        //     mouse_down = false;
+    }
+    else {
+        g_app.mouseDown = false;
+    }
+}
 
 // -------------------------
 // RENDERPASS
@@ -183,7 +267,7 @@ void createDesriptorPools()
 }
 {
     std::array<VkDescriptorPoolSize, 1> poolSizes{{
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
     }};
 
     const VkDescriptorPoolCreateInfo createInfo {
@@ -204,7 +288,7 @@ void createDescriptorSetLayouts()
     std::array<VkDescriptorSetLayoutBinding, 1> bindings{{
         {
             .binding = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             .descriptorCount = 1,
             .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
             .pImmutableSamplers = nullptr,
@@ -237,24 +321,26 @@ void createDescriptorSets()
 void updateDescriptorSets()
 {
     const VkDescriptorBufferInfo descriptorBufferInfo {
-        .buffer = g_vk.buffers[BUFFER_GEOMETRY_SSBO].buffer,
+        .buffer = g_vk.buffers[BUFFER_PER_FRAME_UBO].buffer,
         .offset = 0,
         .range = VK_WHOLE_SIZE,
     };
 
-    VkWriteDescriptorSet writeBuffer{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = g_vk.descriptorSets[DESCRIPTOR_SET_FRAME],
-        .dstBinding = 0,
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .pImageInfo = nullptr,
-        .pBufferInfo = &descriptorBufferInfo,
-        .pTexelBufferView = nullptr,
-    };
+    const std::array<VkWriteDescriptorSet, 1> writes {{
+        {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = g_vk.descriptorSets[DESCRIPTOR_SET_FRAME],
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pImageInfo = nullptr,
+            .pBufferInfo = &descriptorBufferInfo,
+            .pTexelBufferView = nullptr,
+        },
+    }};
 
-    vkUpdateDescriptorSets(g_vk.device, 1, &writeBuffer, 0, nullptr);
+    vkUpdateDescriptorSets(g_vk.device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 
 
@@ -476,8 +562,8 @@ void init()
 {
     const vkmInitParams initParams {
         .window = g_app.window,
-        .windowWidth = g_app.window_width,
-        .windowHeight = g_app.window_height,
+        .windowWidth = g_app.windowWidth,
+        .windowHeight = g_app.windowHeight,
         .requestedInstanceExtensions = {"VK_KHR_surface", "VK_KHR_xcb_surface"},
         .requestedInstanceLayers = {"VK_LAYER_KHRONOS_validation"},
         .requestedDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_NV_MESH_SHADER_EXTENSION_NAME },
@@ -507,6 +593,18 @@ void init()
     VkDeviceSize stagingBufferSize = 50000000;
     createBuffer(g_vk.device, stagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, g_vk.buffers[BUFFER_STAGING]);
 
+    // PerFrameUBO Buffer
+    createBuffer(g_vk.device, sizeof(PerFrameUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, g_vk.buffers[BUFFER_PER_FRAME_UBO]);
+
+    g_app.projMatrix = glm::ortho(-1.0f, 1.0f, 1.0f, -1.0f, -2.0f, 2.0f);
+
+    const PerFrameUBO perFrameUBO {
+        .viewMatrix = g_camera.matrix,
+        .projMatrix = g_app.projMatrix
+    };
+
+    uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_PER_FRAME_UBO], sizeof(PerFrameUBO), 0, (void*)&perFrameUBO);
+
     // Geometry SSBO
     VkDeviceSize geometrySSBOSize = 50000000;
     createBuffer(g_vk.device, geometrySSBOSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_GEOMETRY_SSBO]);
@@ -520,7 +618,16 @@ void init()
     uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_OBJECT_INDEX], sizeof(uint32_t) * meshVertexData.indices.size(), meshVertexData.indices.data());
     g_app.indexCount[BUFFER_OBJECT_INDEX] = meshVertexData.indices.size();
 
+
     updateDescriptorSets();
+}
+
+void update()
+{
+    if (g_camera.dirty)
+    {
+        uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_PER_FRAME_UBO], sizeof(glm::mat4), offsetof(PerFrameUBO, viewMatrix), (void*)&g_camera.matrix);
+    }
 }
 
 
@@ -618,7 +725,7 @@ int main()
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    g_app.window = glfwCreateWindow(g_app.window_width, g_app.window_height, "Vk-Template", nullptr, nullptr);
+    g_app.window = glfwCreateWindow(g_app.windowWidth, g_app.windowHeight, "Vk-Template", nullptr, nullptr);
 
     if (g_app.window == nullptr)
     {
@@ -627,6 +734,8 @@ int main()
     }
     glfwMakeContextCurrent(g_app.window);
     // glfwSetKeyCallback(g_app.window, key_callback);
+    glfwSetCursorPosCallback(g_app.window, cursorPositionCallback);
+    glfwSetMouseButtonCallback(g_app.window, mouseButtonCallback);
 
     LOG("-- Begin -- Init\n");
     init();
@@ -700,6 +809,8 @@ int main()
     while (!glfwWindowShouldClose(g_app.window))
     {
         glfwPollEvents();
+
+        update();
 
         draw();
 
