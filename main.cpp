@@ -38,10 +38,19 @@ struct AppManager
 
 } g_app;
 
+struct ConfigManager
+{
+    glm::vec3 dirLightIntensity { 0.0f, 0.0f, 0.0f };
+    glm::vec3 dirLightPosition { 0.0f, 0.0f, 0.0f };
+
+    glm::vec3 materialAlbedo { 1.0f, 0.0f, 0.0f };
+} g_config;
+
 struct Camera {
     double yaw = -1.0f * glm::half_pi<double>();
     double pitch = 0.0f;
     glm::mat4 matrix { 1.0f };
+    glm::vec3 pos { 0.0f, 0.0f, 0.0f };
     bool dirty = false;
 } g_camera;
 
@@ -51,6 +60,18 @@ struct PerFrameUBO
 {
     glm::mat4 viewMatrix;
     glm::mat4 projMatrix;
+    glm::vec4 viewPos; // making vec4 for now... worry about alignment later
+};
+
+struct PerMatUBO
+{
+    glm::vec4 albedo; // making vec4 for now... worry about alignment later
+};
+
+struct LightUBO
+{
+    glm::vec4 position; // making vec4 for now... worry about alignment later
+    glm::vec4 intensity; // making vec4 for now... worry about alignment later
 };
 
 // -------------------------
@@ -72,6 +93,7 @@ static void update_camera() {
     up = glm::normalize(glm::cross(right, forward));
 
     g_camera.matrix = glm::lookAt(pos, forward, up);
+    g_camera.pos = pos;
     g_camera.dirty = true;
 
     // This wasn't giving correct reutls, idk why
@@ -88,7 +110,7 @@ static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
     if (g_app.mouseDown) {
         // drag across screen = pi radians of rotation
         const double delta_x = -1.0f * glm::pi<double>() * (g_app.prevMousePos.x - xpos) / g_app.windowWidth ;
-        const double delta_y = -1.0f * glm::pi<double>() * (g_app.prevMousePos.y - ypos) / g_app.windowHeight;
+        const double delta_y = 1.0f * glm::pi<double>() * (g_app.prevMousePos.y - ypos) / g_app.windowHeight;
 
         g_camera.yaw += delta_x;
         if (g_camera.yaw > glm::two_pi<double>()) g_camera.yaw -= glm::two_pi<double>();
@@ -267,14 +289,14 @@ void createDesriptorPools()
 }
 {
     std::array<VkDescriptorPoolSize, 1> poolSizes{{
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
     }};
 
     const VkDescriptorPoolCreateInfo createInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0x0,
-        .maxSets = 1u,
+        .maxSets = 2u,
         .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
         .pPoolSizes = poolSizes.data(),
     };
@@ -285,7 +307,7 @@ void createDesriptorPools()
 
 void createDescriptorSetLayouts()
 {
-    std::array<VkDescriptorSetLayoutBinding, 1> bindings{{
+    std::array<VkDescriptorSetLayoutBinding, 2> set0Bindings{{
         {
             .binding = 0,
             .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -293,35 +315,114 @@ void createDescriptorSetLayouts()
             .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
             .pImmutableSamplers = nullptr,
         },
+        {
+            .binding = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pImmutableSamplers = nullptr,
+        },
     }};
 
-    VkDescriptorSetLayoutCreateInfo createInfo{
+    VkDescriptorSetLayoutCreateInfo set0LayoutCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0x0,
-        .bindingCount = static_cast<uint32_t>(bindings.size()),
-        .pBindings = bindings.data(),
+        .bindingCount = static_cast<uint32_t>(set0Bindings.size()),
+        .pBindings = set0Bindings.data(),
     };
 
-    vkCreateDescriptorSetLayout(g_vk.device, &createInfo, nullptr, &g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT]);
+    vkCreateDescriptorSetLayout(g_vk.device, &set0LayoutCreateInfo, nullptr, &g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT_0]);
+
+    std::array<VkDescriptorSetLayoutBinding, 1> set1Bindings{{
+        {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .pImmutableSamplers = nullptr,
+        }
+    }};
+
+    VkDescriptorSetLayoutCreateInfo set1LayoutCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0x0,
+        .bindingCount = static_cast<uint32_t>(set1Bindings.size()),
+        .pBindings = set1Bindings.data(),
+    };
+
+    vkCreateDescriptorSetLayout(g_vk.device, &set1LayoutCreateInfo, nullptr, &g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT_1]);
 }
 
 void createDescriptorSets()
 {
-    VkDescriptorSetAllocateInfo allocInfo{
+    VkDescriptorSetAllocateInfo frameSetAllocInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = g_vk.descriptorPools[DESCRIPTOR_POOL_DEFAULT],
         .descriptorSetCount = 1,
-        .pSetLayouts = &g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT],
+        .pSetLayouts = &g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT_0],
     };
 
-    vkAllocateDescriptorSets(g_vk.device, &allocInfo, &g_vk.descriptorSets[DESCRIPTOR_SET_FRAME]);
+    vkAllocateDescriptorSets(g_vk.device, &frameSetAllocInfo, &g_vk.descriptorSets[DESCRIPTOR_SET_FRAME]);
+
+    VkDescriptorSetAllocateInfo materialSetAllocInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = g_vk.descriptorPools[DESCRIPTOR_POOL_DEFAULT],
+        .descriptorSetCount = 1,
+        .pSetLayouts = &g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT_1],
+    };
+
+    vkAllocateDescriptorSets(g_vk.device, &materialSetAllocInfo, &g_vk.descriptorSets[DESCRIPTOR_SET_MATERIAL]);
 }
 
 void updateDescriptorSets()
 {
+{   // Frame
+    const std::array<VkDescriptorBufferInfo, 2> descriptorBufferInfo {{
+        {
+            .buffer = g_vk.buffers[BUFFER_PER_FRAME_UBO].buffer,
+            .offset = 0,
+            .range = VK_WHOLE_SIZE,
+        },
+        {
+            .buffer = g_vk.buffers[BUFFER_LIGHT_UBO].buffer,
+            .offset = 0,
+            .range = VK_WHOLE_SIZE,
+        },
+    }};
+
+    const std::array<VkWriteDescriptorSet, 2> writes {{
+        {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = g_vk.descriptorSets[DESCRIPTOR_SET_FRAME],
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pImageInfo = nullptr,
+            .pBufferInfo = &descriptorBufferInfo[0],
+            .pTexelBufferView = nullptr,
+        },
+        {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = g_vk.descriptorSets[DESCRIPTOR_SET_FRAME],
+            .dstBinding = 1,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pImageInfo = nullptr,
+            .pBufferInfo = &descriptorBufferInfo[1],
+            .pTexelBufferView = nullptr,
+        },
+    }};
+
+    vkUpdateDescriptorSets(g_vk.device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+}
+
+{   // Material
     const VkDescriptorBufferInfo descriptorBufferInfo {
-        .buffer = g_vk.buffers[BUFFER_PER_FRAME_UBO].buffer,
+        .buffer = g_vk.buffers[BUFFER_MATERIAL_UBO].buffer,
         .offset = 0,
         .range = VK_WHOLE_SIZE,
     };
@@ -329,7 +430,7 @@ void updateDescriptorSets()
     const std::array<VkWriteDescriptorSet, 1> writes {{
         {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = g_vk.descriptorSets[DESCRIPTOR_SET_FRAME],
+            .dstSet = g_vk.descriptorSets[DESCRIPTOR_SET_MATERIAL],
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorCount = 1,
@@ -342,6 +443,7 @@ void updateDescriptorSets()
 
     vkUpdateDescriptorSets(g_vk.device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
+}
 
 
 // -------------------------
@@ -350,8 +452,9 @@ void updateDescriptorSets()
 
 void createPipelineLayouts()
 {
-    std::array<VkDescriptorSetLayout, 1> setLayouts{
-        g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT]};
+    std::array<VkDescriptorSetLayout, 2> setLayouts{
+        g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT_0],
+        g_vk.descriptorSetLayouts[DESCRIPTOR_SET_LAYOUT_DEFAULT_1]};
 
     // std::array<VkPushConstantRange, 1> ranges {{
     //     {
@@ -596,7 +699,7 @@ void init()
     // PerFrameUBO Buffer
     createBuffer(g_vk.device, sizeof(PerFrameUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, g_vk.buffers[BUFFER_PER_FRAME_UBO]);
 
-    g_app.projMatrix = glm::ortho(-1.0f, 1.0f, 1.0f, -1.0f, -2.0f, 2.0f);
+    g_app.projMatrix = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -2.0f, 2.0f);
 
     const PerFrameUBO perFrameUBO {
         .viewMatrix = g_camera.matrix,
@@ -605,6 +708,21 @@ void init()
 
     uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_PER_FRAME_UBO], sizeof(PerFrameUBO), 0, (void*)&perFrameUBO);
 
+    // PerMatUBO Buffer
+    createBuffer(g_vk.device, sizeof(PerMatUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, g_vk.buffers[BUFFER_MATERIAL_UBO]);
+    g_config.materialAlbedo = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec4 materialAlbedo = glm::vec4(g_config.materialAlbedo, 0.0f);
+    uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_MATERIAL_UBO], sizeof(glm::vec4), offsetof(PerMatUBO, albedo), (void*)&g_config.materialAlbedo);
+
+    // LightUBO
+    createBuffer(g_vk.device, sizeof(LightUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, g_vk.buffers[BUFFER_LIGHT_UBO]);
+    g_config.dirLightIntensity = glm::vec3(1.0f, 1.0f, 1.0f);
+    g_config.dirLightPosition = glm::vec3(5.0f, 10.0f, 10.0f);
+    glm::vec4 dirLightIntensity = glm::vec4(g_config.dirLightIntensity, 0.0f);
+    glm::vec4 dirLightPosition = glm::vec4(g_config.dirLightPosition, 0.0f);
+    uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_LIGHT_UBO], sizeof(glm::vec4), offsetof(LightUBO, position), (void*)&dirLightPosition);
+    uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_LIGHT_UBO], sizeof(glm::vec4), offsetof(LightUBO, intensity), (void*)&dirLightIntensity);
+    
     // Geometry SSBO
     VkDeviceSize geometrySSBOSize = 50000000;
     createBuffer(g_vk.device, geometrySSBOSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, g_vk.buffers[BUFFER_GEOMETRY_SSBO]);
@@ -618,7 +736,6 @@ void init()
     uploadBuffer(g_vk.device, g_vk.commandPools[COMMAND_BUFFER_DEFAULT], g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT], g_vk.queues[QUEUE_GRAPHICS], g_vk.buffers[BUFFER_STAGING], g_vk.buffers[BUFFER_OBJECT_INDEX], sizeof(uint32_t) * meshVertexData.indices.size(), meshVertexData.indices.data());
     g_app.indexCount[BUFFER_OBJECT_INDEX] = meshVertexData.indices.size();
 
-
     updateDescriptorSets();
 }
 
@@ -627,9 +744,9 @@ void update()
     if (g_camera.dirty)
     {
         uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_PER_FRAME_UBO], sizeof(glm::mat4), offsetof(PerFrameUBO, viewMatrix), (void*)&g_camera.matrix);
+        uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_PER_FRAME_UBO], sizeof(glm::vec3), offsetof(PerFrameUBO, viewPos), (void*)&g_camera.pos);
     }
 }
-
 
 void draw()
 {
@@ -671,7 +788,12 @@ void draw()
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk.pipeline);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk.pipelineLayout, 0, 1, &g_vk.descriptorSets[DESCRIPTOR_SET_FRAME], 0, nullptr);
+    const std::array<VkDescriptorSet, 2> sets {{
+        g_vk.descriptorSets[DESCRIPTOR_SET_FRAME],
+        g_vk.descriptorSets[DESCRIPTOR_SET_MATERIAL],
+    }};
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_vk.pipelineLayout, 0, sets.size(), sets.data(), 0, nullptr);
     // vkCmdPushConstants(commandBuffer, g_vk_app.pipeline_layout[PIPELINE_DEFAULT], VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4, &g_app.tex_idx);
 
     static const VkDeviceSize pOffsets = 0;

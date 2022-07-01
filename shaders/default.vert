@@ -4,13 +4,16 @@ layout(location=0) in vec3 a_pos;
 layout(location=1) in vec2 a_uv;
 layout(location=2) in vec3 a_norm;
 
-layout(location=0) out vec3 out_norm;
-
 layout(set=0, binding=0) uniform PerFrameUBO
 {
     mat4 viewMatrix;
     mat4 projMatrix;
-};
+    vec3 viewPos;
+} FrameUBO;
+
+layout(location=0) out vec3 out_worldPos;
+layout(location=1) out vec3 out_normal;
+layout(location=2) out vec3 out_viewPos;
 
 // struct PerObjData
 // {
@@ -46,6 +49,9 @@ void main()
     // gl_Position = vec4(vertexInfo.vx, vertexInfo.vy, vertexInfo.vz, 1.0f); 
     // out_norm = vec3(vertexInfo.nx, vertexInfo.ny, vertexInfo.nz);
 
-    gl_Position = projMatrix * viewMatrix * vec4(a_pos, 1.0f);
-    out_norm = a_norm;
+    gl_Position = FrameUBO.projMatrix * FrameUBO.viewMatrix * vec4(a_pos, 1.0f);
+
+    out_worldPos = a_pos;
+    out_normal   = a_norm;
+    out_viewPos  = FrameUBO.viewPos;
 }
