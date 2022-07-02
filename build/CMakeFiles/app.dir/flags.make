@@ -6,5 +6,5 @@ CXX_FLAGS = -g   -std=gnu++2a
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/mica/Downloads/1.2.198.1/x86_64/include 
+CXX_INCLUDES = -I/home/mica/Desktop/Vulkan/Mesh-Shader/external/imgui -I/home/mica/Desktop/Vulkan/Mesh-Shader/external/imgui/backends -I/home/mica/Downloads/1.2.198.1/x86_64/include -I/home/mica/Desktop/Vulkan/Mesh-Shader/external 
 

@@ -6,6 +6,34 @@
 
 #IncludeRegexTransform: 
 
+../external/imgui/backends/imgui_impl_glfw.h
+imgui.h
+../external/imgui/backends/imgui.h
+
+../external/imgui/backends/imgui_impl_vulkan.h
+imgui.h
+../external/imgui/backends/imgui.h
+vulkan/vulkan.h
+-
+
+../external/imgui/imconfig.h
+
+../external/imgui/imgui.h
+imconfig.h
+../external/imgui/imconfig.h
+float.h
+-
+stdarg.h
+-
+stddef.h
+-
+string.h
+-
+assert.h
+-
+imgui_user.h
+../external/imgui/imgui_user.h
+
 /home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp
 iostream
 -
@@ -54,6 +82,12 @@ GLFW/glfw3.h
 glm/glm.hpp
 -
 glm/gtc/type_ptr.hpp
+-
+imgui/imgui.h
+-
+imgui/backends/imgui_impl_glfw.h
+-
+imgui/backends/imgui_impl_vulkan.h
 -
 Defines.hpp
 /home/mica/Desktop/Vulkan/Mesh-Shader/Defines.hpp

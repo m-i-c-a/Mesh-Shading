@@ -10,9 +10,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// #include <imgui/imgui.h>
-// #include <imgui/backends/imgui_impl_glfw.h>
-// #include <imgui/backends/imgui_impl_vulkan.h>
+#include <imgui/imgui.h>
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_vulkan.h>
 
 #include "Defines.hpp"
 #include "vkmEnums.h"
@@ -31,6 +31,9 @@ struct AppManager
 
     glm::mat4 projMatrix { 1.0f };
 
+    bool initDone = false;
+    bool displayGui = true;
+
     bool mouseDown = false;
     glm::vec2 prevMousePos { 0.0f, 0.0f };
 
@@ -44,6 +47,7 @@ struct ConfigManager
     glm::vec3 dirLightPosition { 0.0f, 0.0f, 0.0f };
 
     glm::vec3 materialAlbedo { 1.0f, 0.0f, 0.0f };
+    float materialRoughness { 0.5f };
 } g_config;
 
 struct Camera {
@@ -66,6 +70,7 @@ struct PerFrameUBO
 struct PerMatUBO
 {
     glm::vec4 albedo; // making vec4 for now... worry about alignment later
+    glm::vec4 roughness;
 };
 
 struct LightUBO
@@ -126,15 +131,15 @@ static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 }
 
 static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-    // if (!g_app.loaded)
-    //     return;
+    if (!g_app.initDone)
+        return;
 
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        // auto io = ImGui::GetIO();
-        // if (!io.WantCaptureMouse)
+        auto io = ImGui::GetIO();
+        if (!io.WantCaptureMouse)
             g_app.mouseDown = true;
-        // else
-        //     mouse_down = false;
+        else
+            g_app.mouseDown = false;
     }
     else {
         g_app.mouseDown = false;
@@ -711,8 +716,11 @@ void init()
     // PerMatUBO Buffer
     createBuffer(g_vk.device, sizeof(PerMatUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, g_vk.buffers[BUFFER_MATERIAL_UBO]);
     g_config.materialAlbedo = glm::vec3(1.0f, 0.0f, 0.0f);
+    g_config.materialRoughness = 0.5f;
     glm::vec4 materialAlbedo = glm::vec4(g_config.materialAlbedo, 0.0f);
-    uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_MATERIAL_UBO], sizeof(glm::vec4), offsetof(PerMatUBO, albedo), (void*)&g_config.materialAlbedo);
+    glm::vec4 materialRoughness = glm::vec4(g_config.materialRoughness, 0.0f, 0.0f, 0.0f);
+    uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_MATERIAL_UBO], sizeof(glm::vec4), offsetof(PerMatUBO, albedo), (void*)&materialAlbedo);
+    uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_MATERIAL_UBO], sizeof(glm::vec4), offsetof(PerMatUBO, roughness), (void*)&materialRoughness);
 
     // LightUBO
     createBuffer(g_vk.device, sizeof(LightUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, g_vk.buffers[BUFFER_LIGHT_UBO]);
@@ -746,6 +754,16 @@ void update()
         uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_PER_FRAME_UBO], sizeof(glm::mat4), offsetof(PerFrameUBO, viewMatrix), (void*)&g_camera.matrix);
         uploadToBuffer(g_vk.device, g_vk.buffers[BUFFER_PER_FRAME_UBO], sizeof(glm::vec3), offsetof(PerFrameUBO, viewPos), (void*)&g_camera.pos);
     }
+}
+
+void gui()
+{
+    // bool open = true;
+    // if (ImGui::Begin("App Config", &open))
+    // {
+
+    //     ImGui::End();
+    // }
 }
 
 void draw()
@@ -801,11 +819,10 @@ void draw()
     vkCmdBindIndexBuffer(commandBuffer, g_vk.buffers[BUFFER_OBJECT_INDEX].buffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(commandBuffer, g_app.indexCount[BUFFER_OBJECT_INDEX], 1, 0, 0, 0);
 
-
-    // if (g_app.render_gui)
-    // {
-    //     gui();
-    // }
+    if (g_app.displayGui)
+    {
+        gui();
+    }
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -864,62 +881,64 @@ int main()
     LOG("-- End -- Init\n");
 
     // Setup Dear ImGui context
-    // IMGUI_CHECKVERSION();
-    // ImGui::CreateContext();
-    // ImGuiIO &io = ImGui::GetIO();
-    // (void)io;
-    // // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    (void)io;
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    // // Setup Dear ImGui style
-    // ImGui::StyleColorsDark();
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
 
-    // // Setup Platform/Renderer backends
-    // ImGui_ImplGlfw_InitForVulkan(g_app.window, true);
-    // ImGui_ImplVulkan_InitInfo init_info = {};
-    // init_info.Instance = g_vk.instance;
-    // init_info.PhysicalDevice = g_vk.physical_device;
-    // init_info.Device = g_vk.device->get_device();
-    // init_info.QueueFamily = g_vk.device->get_queue_family_idx(QueueType::eGraphics),
-    // init_info.Queue = g_vk.device->get_queue(QueueType::eGraphics),
-    // init_info.PipelineCache = VK_NULL_HANDLE;
-    // init_info.DescriptorPool = g_vk_app.descriptor_pool[DESCRIPTOR_POOL_IMGUI];
-    // init_info.Subpass = 0;
-    // init_info.MinImageCount = 2;
-    // init_info.ImageCount = static_cast<uint32_t>(g_vk.swapchain_images.size()),
-    // init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    // init_info.Allocator = nullptr;
-    // init_info.CheckVkResultFn = nullptr;
-    // ImGui_ImplVulkan_Init(&init_info, g_vk_app.renderpass[RENDERPASS_DEFAULT]);
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForVulkan(g_app.window, true);
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = g_vk.instance;
+    init_info.PhysicalDevice = g_vk.physicalDevice;
+    init_info.Device = g_vk.device;
+    init_info.QueueFamily = g_vk.queueFamilyIndices[QUEUE_GRAPHICS];
+    init_info.Queue = g_vk.queues[QUEUE_GRAPHICS];
+    init_info.PipelineCache = VK_NULL_HANDLE;
+    init_info.DescriptorPool = g_vk.descriptorPools[DESCRIPTOR_POOL_IMGUI];
+    init_info.Subpass = 0;
+    init_info.MinImageCount = 2;
+    init_info.ImageCount = static_cast<uint32_t>(g_vk.swapchain.images.size());
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.Allocator = nullptr;
+    init_info.CheckVkResultFn = nullptr;
+    ImGui_ImplVulkan_Init(&init_info, g_vk.renderPass);
+
+    g_app.initDone = true;
 
     // Upload Fonts
-    // {
-    //     // Use any command queue
-    //     VkCommandBuffer command_buffer = g_vk_app.command_buffer[COMMAND_BUFFER_RENDER];
+    {
+        // Use any command queue
+        VkCommandBuffer command_buffer = g_vk.commandBuffers[COMMAND_BUFFER_DEFAULT];
 
-    //     const VkCommandBufferBeginInfo command_buffer_begin_info{
-    //         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    //         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
+        const VkCommandBufferBeginInfo command_buffer_begin_info{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
 
-    //     VK_CHECK(vkBeginCommandBuffer(command_buffer, &command_buffer_begin_info));
+        VK_CHECK(vkBeginCommandBuffer(command_buffer, &command_buffer_begin_info));
 
-    //     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+        ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
 
-    //     VK_CHECK(vkEndCommandBuffer(command_buffer));
+        VK_CHECK(vkEndCommandBuffer(command_buffer));
 
-    //     const VkSubmitInfo submit_info{
-    //         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    //         .commandBufferCount = 1,
-    //         .pCommandBuffers = &command_buffer};
+        const VkSubmitInfo submit_info{
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &command_buffer};
 
-    //     VK_CHECK(vkQueueSubmit(g_vk.device->get_queue(QueueType::eGraphics), 1, &submit_info, VK_NULL_HANDLE));
+        VK_CHECK(vkQueueSubmit(g_vk.queues[QUEUE_GRAPHICS], 1, &submit_info, VK_NULL_HANDLE));
 
-    //     VK_CHECK(vkDeviceWaitIdle(g_vk.device->get_device()));
+        VK_CHECK(vkDeviceWaitIdle(g_vk.device));
 
-    //     ImGui_ImplVulkan_DestroyFontUploadObjects();
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-    //     vkResetCommandPool(g_vk.device->get_device(), g_vk_app.command_pool[COMMAND_POOL_DEFAULT], 0x0);
-    // }
+        vkResetCommandPool(g_vk.device, g_vk.commandPools[COMMAND_POOL_DEFAULT], 0x0);
+    }
 
     LOG("-- Begin -- Run\n");
 
@@ -943,9 +962,9 @@ int main()
 
     LOG("-- End -- Run\n");
 
-    // ImGui_ImplVulkan_Shutdown();
-    // ImGui_ImplGlfw_Shutdown();
-    // ImGui::DestroyContext();
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     vkmDestroy(g_vk);
 
